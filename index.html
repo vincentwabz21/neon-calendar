@@ -1,1153 +1,535 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon Sync - Cyberpunk Calendar</title>
+    <title>Neon Sync - normzFPV</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-dark: #050508;
-            --panel-bg: rgba(10, 10, 18, 0.85);
             --neon-cyan: #00f3ff;
             --neon-pink: #ff00ff;
             --neon-purple: #bc13fe;
             --neon-green: #39ff14;
-            --text-main: #e0e0ff;
+            --neon-orange: #ff9900;
         }
-
         body {
-            background-color: transparent;
-            background-image: 
-                linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
-            background-size: 30px 30px;
-            color: var(--text-main);
+            background-color: var(--bg-dark);
+            color: #e0e0ff;
             font-family: 'Rajdhani', sans-serif;
             overflow-x: hidden;
-            min-height: 100vh;
+            margin: 0;
         }
-
-        h1, h2, h3, .orbitron {
-            font-family: 'Orbitron', sans-serif;
+        h1, h2, h3, .orbitron { font-family: 'Orbitron', sans-serif; }
+        
+        /* Background Effects */
+        #snakeCanvas { position: fixed; top: 0; left: 0; z-index: -2; opacity: 0.15; }
+        .planet {
+            position: fixed; border-radius: 50%; z-index: -1; opacity: 0.4; filter: blur(4px);
         }
+        .planet-1 { width: 300px; height: 300px; top: -100px; right: -50px; background: radial-gradient(circle, var(--neon-purple), transparent); }
+        .planet-2 { width: 150px; height: 150px; bottom: 10vh; left: 5vw; background: radial-gradient(circle, var(--neon-cyan), transparent); }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-dark); }
-        ::-webkit-scrollbar-thumb { background: var(--neon-purple); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--neon-pink); }
-
-        /* Neon Glows */
-        .glow-text-cyan {
-            text-shadow: 0 0 5px var(--neon-cyan), 0 0 10px var(--neon-cyan), 0 0 20px var(--neon-cyan);
-            color: #fff;
-        }
-        .glow-text-pink {
-            text-shadow: 0 0 5px var(--neon-pink), 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink);
-            color: #fff;
-        }
-
-        .neon-box {
-            background: var(--panel-bg);
-            border: 1px solid rgba(0, 243, 255, 0.3);
-            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0, 243, 255, 0.05);
+        /* UI Styling */
+        .glass-panel {
+            background: rgba(10, 10, 18, 0.85);
             backdrop-filter: blur(10px);
-            border-radius: 12px;
-            transition: all 0.3s ease;
+            border: 1px solid rgba(188, 19, 254, 0.3);
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.1);
         }
-
-        .neon-box:hover {
-            border-color: var(--neon-cyan);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.4), inset 0 0 15px rgba(0, 243, 255, 0.2);
-        }
-
-        .neon-box-pink {
-            border: 1px solid rgba(255, 0, 255, 0.3);
-            box-shadow: 0 0 15px rgba(255, 0, 255, 0.1), inset 0 0 20px rgba(255, 0, 255, 0.05);
-        }
-
-        /* Calendar Grid */
-        .day-cell {
-            aspect-ratio: 1 / 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            padding-top: 10%;
-            cursor: pointer;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.02);
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .day-cell:hover:not(.empty) {
-            background: rgba(0, 243, 255, 0.1);
-            border-color: var(--neon-cyan);
-            transform: scale(1.05);
-            z-index: 10;
-            box-shadow: 0 0 15px var(--neon-cyan);
-        }
-
-        .day-cell.active {
-            background: rgba(255, 0, 255, 0.2);
-            border-color: var(--neon-pink);
-            box-shadow: 0 0 20px var(--neon-pink), inset 0 0 10px var(--neon-pink);
-            color: #fff;
-            transform: scale(1.05);
-            z-index: 10;
-        }
-
-        .day-cell.empty {
-            cursor: default;
-            opacity: 0.3;
-            background: transparent;
-            border-color: transparent;
-        }
-
-        .day-cell .day-number {
-            font-size: 1.2rem;
-            font-weight: 600;
-            pointer-events: none;
-        }
-
-        .event-indicator {
-            display: flex;
-            gap: 4px;
-            margin-top: auto;
-            margin-bottom: 10%;
-            pointer-events: none;
-        }
-        
-        .dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-        }
-        .dot-apt { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
-        .dot-todo { background: var(--neon-pink); box-shadow: 0 0 5px var(--neon-pink); }
-        .dot-event { background: var(--neon-green); box-shadow: 0 0 5px var(--neon-green); }
-
-        /* Animations */
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; text-shadow: 0 0 10px var(--neon-cyan), 0 0 30px var(--neon-cyan); }
-        }
-        .animate-pulse-glow {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(30px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-        .slide-in {
-            animation: slideIn 0.4s ease forwards;
-        }
-
-        /* Inputs & Buttons */
-        .neon-input {
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(0, 243, 255, 0.5);
-            color: #fff;
-            border-radius: 6px;
-            padding: 8px 12px;
-            outline: none;
-            transition: all 0.3s;
-            width: 100%;
-        }
-        .neon-input:focus {
-            border-color: var(--neon-cyan);
-            box-shadow: 0 0 10px var(--neon-cyan);
-        }
-
-        .neon-btn {
-            background: transparent;
-            color: #fff;
-            border: 1px solid var(--neon-cyan);
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            text-transform: uppercase;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 0.8rem;
-            letter-spacing: 1px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .neon-btn:hover {
-            background: var(--neon-cyan);
-            color: #000;
-            box-shadow: 0 0 15px var(--neon-cyan);
-        }
-
-        .neon-btn.pink {
-            border-color: var(--neon-pink);
-        }
-        .neon-btn.pink:hover {
-            background: var(--neon-pink);
-            color: #000;
-            box-shadow: 0 0 15px var(--neon-pink);
-        }
-
-        /* Checkbox styling */
-        .todo-checkbox {
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border: 2px solid var(--neon-pink);
-            border-radius: 4px;
-            cursor: pointer;
-            position: relative;
+        .glow-text { text-shadow: 0 0 5px currentColor; }
+        .btn-neon {
             transition: all 0.2s;
-            flex-shrink: 0;
+            border: 1px solid;
         }
-        .todo-checkbox:checked {
-            background: var(--neon-pink);
-            box-shadow: 0 0 10px var(--neon-pink);
+        .btn-neon:hover { box-shadow: 0 0 10px currentColor inset, 0 0 10px currentColor; }
+        
+        /* Grid setup */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .cal-day {
+            aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; align-items: flex-end; padding: 4px;
+            cursor: pointer; transition: all 0.2s; position: relative;
         }
-        .todo-checkbox:checked::after {
-            content: '✓';
-            position: absolute;
-            color: #000;
-            font-size: 14px;
-            font-weight: bold;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        .todo-item.done span {
-            text-decoration: line-through;
-            opacity: 0.5;
-        }
+        .cal-day:hover { border-color: var(--neon-cyan); background: rgba(0, 243, 255, 0.05); }
+        .cal-day.active { border-color: var(--neon-pink); box-shadow: 0 0 10px rgba(255,0,255,0.3) inset; }
+        
+        .event-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 2px; }
+        .dot-appt { background-color: var(--neon-cyan); box-shadow: 0 0 4px var(--neon-cyan); }
+        .dot-todo { background-color: var(--neon-pink); box-shadow: 0 0 4px var(--neon-pink); }
+        .dot-event { background-color: var(--neon-green); box-shadow: 0 0 4px var(--neon-green); }
 
-        /* Glassmorphism List Items */
-        .list-item {
-            background: rgba(255, 255, 255, 0.03);
-            border-left: 3px solid transparent;
-            transition: all 0.2s;
-        }
-        .list-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-        .list-item.apt { border-left-color: var(--neon-cyan); }
-        .list-item.todo { border-left-color: var(--neon-pink); }
-        .list-item.event { border-left-color: var(--neon-green); }
+        /* Holiday Badges */
+        .badge { font-size: 0.6rem; position: absolute; top: 2px; left: 2px; font-weight: bold; }
+        .badge-hol { color: var(--neon-pink); }
+        .badge-inset { color: var(--neon-orange); }
 
-        /* Term Badges */
-        .term-badge {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            font-size: 0.55rem;
-            padding: 2px 4px;
-            border-radius: 4px;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: bold;
-            pointer-events: none;
-            z-index: 5;
+        /* Shift Blocks */
+        .shift-block {
+            padding: 8px 4px; border: 1px solid rgba(255,255,255,0.1); text-align: center;
+            font-weight: bold; cursor: pointer; position: relative; font-size: 0.8rem;
         }
-        .term-badge.t-term {
-            background: rgba(0, 243, 255, 0.15);
-            color: var(--neon-cyan);
-            border: 1px solid rgba(0, 243, 255, 0.5);
-        }
-        .term-badge.t-inset {
-            background: rgba(255, 255, 0, 0.15);
-            color: #ffff00;
-            border: 1px solid rgba(255, 255, 0, 0.5);
-        }
-        .term-badge.t-hol {
-            background: rgba(57, 255, 20, 0.15);
-            color: var(--neon-green);
-            border: 1px solid rgba(57, 255, 20, 0.5);
-        }
-
-        #snakeCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: -1;
-            pointer-events: none; /* Ensures the game doesn't block clicks on the calendar */
-        }
+        .shift-LD { color: var(--neon-cyan); border-bottom: 2px solid var(--neon-cyan); }
+        .shift-LTL { color: var(--neon-purple); border-bottom: 2px solid var(--neon-purple); }
+        .shift-E { color: var(--neon-green); border-bottom: 2px solid var(--neon-green); }
+        .shift-L { color: var(--neon-pink); border-bottom: 2px solid var(--neon-pink); }
+        .badge-oc { color: var(--neon-orange); position: absolute; top: 0; right: 2px; font-size: 0.6rem; }
     </style>
 </head>
-<body class="p-4 md:p-8 flex flex-col items-center">
-    
-    <!-- Background Ambient Game -->
+<body class="flex flex-col h-screen">
+
     <canvas id="snakeCanvas"></canvas>
+    <div class="planet planet-1"></div>
+    <div class="planet planet-2"></div>
 
     <!-- Header -->
-    <header class="w-full max-w-7xl flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+    <header class="p-4 flex justify-between items-center border-b border-purple-900 glass-panel z-10">
         <div class="flex items-center gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="filter: drop-shadow(0 0 8px #00f3ff);">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <h1 class="text-3xl md:text-5xl font-black tracking-wider glow-text-cyan uppercase">Neon Sync</h1>
-            
-            <!-- normzFPV Logo -->
-            <div class="ml-2 md:ml-6 px-4 py-1.5 border-2 rounded-lg bg-black/60 backdrop-blur-sm transform -skew-x-12 transition-all hover:scale-105 cursor-default"
-                 style="border-color: var(--neon-purple); box-shadow: 0 0 10px rgba(188, 19, 254, 0.4), inset 0 0 8px rgba(188, 19, 254, 0.2);">
-                <span class="orbitron font-black text-lg md:text-xl tracking-widest block transform skew-x-12" 
-                      style="color: #fff; text-shadow: 0 0 5px var(--neon-purple), 0 0 10px var(--neon-purple);">
-                    normz<span class="text-purple-400">FPV</span>
-                </span>
-            </div>
+            <h1 class="text-3xl text-purple-400 glow-text italic tracking-wider">normzFPV</h1>
+            <span class="text-gray-500 text-sm mt-2">NEON SYNC</span>
         </div>
-        <div class="flex gap-4 items-center">
-            <button onclick="changeMonth(-1)" class="neon-btn">&lt; Prev</button>
-            <h2 id="monthYearDisplay" class="text-xl md:text-3xl font-bold w-48 text-center text-white orbitron tracking-widest">NOV 2026</h2>
-            <button onclick="changeMonth(1)" class="neon-btn">Next &gt;</button>
+        <div class="text-right">
+            <div id="bible-verse" class="text-sm italic text-gray-400 max-w-md"></div>
+            <div class="text-neon-pink glow-text text-xl">✝</div>
         </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="w-full max-w-7xl flex flex-col lg:flex-row gap-8 items-start">
+    <div class="flex flex-1 overflow-hidden z-10">
         
-        <!-- Left Column -->
-        <div class="w-full lg:w-2/3 flex flex-col gap-8 flex-shrink-0">
-            <!-- Calendar Grid Container -->
-            <section class="neon-box p-6 w-full">
-                <div class="grid grid-cols-7 gap-2 md:gap-4 mb-4 text-center orbitron text-cyan-400 font-bold text-sm md:text-base">
+        <!-- Main Left Column -->
+        <main class="flex-1 p-6 overflow-y-auto flex flex-col gap-6">
+            
+            <!-- Calendar Section -->
+            <section class="glass-panel p-6 rounded-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <button id="prevMonth" class="text-cyan-400 hover:text-white px-3 py-1 btn-neon border-cyan-400 rounded">&lt; Prev</button>
+                    <h2 id="currentMonthYear" class="text-2xl orbitron text-cyan-400 glow-text"></h2>
+                    <button id="nextMonth" class="text-cyan-400 hover:text-white px-3 py-1 btn-neon border-cyan-400 rounded">Next &gt;</button>
+                </div>
+                
+                <div class="cal-grid mb-2 text-center text-gray-400 text-sm">
                     <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
                 </div>
-                <div id="calendarGrid" class="grid grid-cols-7 gap-2 md:gap-4">
-                    <!-- Days will be generated by JS -->
-                </div>
-                <div class="flex flex-wrap justify-center gap-4 mt-6 text-[10px] md:text-xs orbitron text-gray-400 border-t border-cyan-500/20 pt-4">
-                    <span class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-[rgba(57,255,20,0.15)] border border-[rgba(57,255,20,0.5)] flex items-center justify-center text-[8px] text-green-400">H</span> Holiday</span>
-                    <span class="flex items-center gap-2"><span class="w-4 h-4 rounded bg-[rgba(255,255,0,0.15)] border border-[rgba(255,255,0,0.5)] flex items-center justify-center text-[8px] text-yellow-400">I</span> Inset Day</span>
-                </div>
-            </section>
-
-            <!-- Work Shifts Container -->
-            <section class="neon-box p-6 w-full" style="border-color: var(--neon-purple); box-shadow: 0 0 15px rgba(188, 19, 254, 0.1), inset 0 0 20px rgba(188, 19, 254, 0.05);">
-                <div class="flex flex-col md:flex-row justify-between items-center mb-4 border-b border-purple-500/30 pb-3 gap-2">
-                    <div class="flex items-center gap-2">
-                        <h3 class="text-xl font-bold uppercase tracking-wide orbitron" style="color: var(--neon-purple); text-shadow: 0 0 8px var(--neon-purple);">Work Shifts</h3>
-                        <select id="shiftMonthSelect" onchange="changeShiftMonth()" class="bg-black/50 border border-purple-500/50 text-purple-400 text-xs rounded px-2 py-1 outline-none orbitron focus:border-purple-400 cursor-pointer">
-                            <option value="0">JAN</option>
-                            <option value="1">FEB</option>
-                            <option value="2">MAR</option>
-                            <option value="3">APR</option>
-                            <option value="4">MAY</option>
-                            <option value="5">JUN</option>
-                            <option value="6">JUL</option>
-                            <option value="7">AUG</option>
-                            <option value="8">SEP</option>
-                            <option value="9">OCT</option>
-                            <option value="10">NOV</option>
-                            <option value="11">DEC</option>
-                        </select>
-                        <select id="shiftYearSelect" onchange="changeShiftMonth()" class="bg-black/50 border border-purple-500/50 text-purple-400 text-xs rounded px-2 py-1 outline-none orbitron focus:border-purple-400 cursor-pointer">
-                            <option value="2025">2025</option>
-                            <option value="2026">2026</option>
-                            <option value="2027">2027</option>
-                            <option value="2028">2028</option>
-                        </select>
-                    </div>
-                    <div class="flex flex-wrap justify-center gap-3 text-[10px] md:text-xs orbitron">
-                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_5px_#00f3ff]"></span> LD: Long Day</span>
-                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-pink-400 shadow-[0_0_5px_#ff00ff]"></span> LTL: Late Twilight</span>
-                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_5px_#39ff14]"></span> E: Early</span>
-                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_5px_#ffff00]"></span> L: Late</span>
-                        <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_5px_#ff9900]"></span> OC: On Call</span>
-                    </div>
-                </div>
-                <div id="shiftsGrid" class="grid grid-cols-7 gap-2 md:gap-3 text-center orbitron text-sm">
-                    <!-- Shift blocks generated by JS -->
-                </div>
-                <p class="text-[10px] text-gray-500 mt-3 text-center italic">* Click the + or edit icon to assign a shift.</p>
-            </section>
-        </div>
-
-        <!-- Right Column (Panels) -->
-        <div class="w-full lg:w-1/3 flex flex-col gap-6">
-            <!-- Events Side Panel -->
-            <section id="eventPanel" class="neon-box neon-box-pink p-6 flex flex-col gap-6 slide-in">
-                <div class="flex justify-between items-center border-b border-fuchsia-500/30 pb-4">
-                    <h3 class="text-2xl font-bold glow-text-pink uppercase tracking-wide" id="selectedDateDisplay">Upcoming Events</h3>
-                    <button id="closePanelBtn" onclick="closePanel()" class="text-pink-500 hover:text-white transition-colors text-xl font-bold px-2" style="display: none;">✕</button>
-                </div>
-
-            <!-- Add Event Section -->
-            <div id="addEventSection" class="flex flex-col gap-3 w-full" style="display: none;">
-                <button id="showAddFormBtn" onclick="toggleAddForm(true)" class="neon-btn w-full py-2 border-dashed border-gray-500 text-gray-400 hover:text-white hover:border-pink-500 transition-all">+ Add</button>
+                <div id="calendarGrid" class="cal-grid"></div>
                 
-                <div id="addEventForm" class="flex-col gap-3 bg-black/40 p-4 rounded-lg border border-white/5 relative" style="display: none;">
-                    <button onclick="toggleAddForm(false)" class="absolute top-2 right-2 text-gray-500 hover:text-white text-sm">✕</button>
-                    <div class="flex gap-2 mt-4">
-                        <button id="btnAptSelect" onclick="setEventType('apt')" class="flex-1 py-2 text-sm orbitron border border-cyan-400 text-cyan-400 rounded transition-all bg-cyan-400/20 shadow-[0_0_10px_rgba(0,243,255,0.3)]">Appt</button>
-                        <button id="btnTodoSelect" onclick="setEventType('todo')" class="flex-1 py-2 text-sm orbitron border border-gray-600 text-gray-400 rounded transition-all hover:border-pink-500 hover:text-pink-500">To-Do</button>
-                        <button id="btnEventSelect" onclick="setEventType('event')" class="flex-1 py-2 text-sm orbitron border border-gray-600 text-gray-400 rounded transition-all hover:border-green-400 hover:text-green-400">Event</button>
-                    </div>
+                <div class="mt-4 flex gap-4 text-xs text-gray-400 justify-center">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Appt</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-pink-500"></span> To-Do</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400"></span> Event</span>
+                    <span class="flex items-center gap-1"><span class="badge-hol relative text-pink-500">HOL</span> Holiday</span>
+                    <span class="flex items-center gap-1"><span class="badge-inset relative text-orange-400">INSET</span> Inset Day</span>
+                </div>
+            </section>
+
+            <!-- Work Shifts Section -->
+            <section class="glass-panel p-6 rounded-lg">
+                <div class="flex justify-between items-center mb-4 border-b border-purple-900 pb-2">
+                    <h3 class="text-xl orbitron text-purple-400 glow-text">WORK SHIFTS</h3>
                     <div class="flex gap-2">
-                        <input type="time" id="eventTimeInput" class="neon-input w-24 text-sm" style="color-scheme: dark;">
-                        <input type="text" id="eventInput" class="neon-input flex-1" placeholder="Enter details..." onkeypress="handleEnter(event)">
-                        <button onclick="addEvent()" class="neon-btn font-bold text-lg px-4">+</button>
+                        <select id="shiftMonth" class="bg-gray-900 border border-purple-500 text-purple-300 rounded p-1 text-sm"></select>
+                        <select id="shiftYear" class="bg-gray-900 border border-purple-500 text-purple-300 rounded p-1 text-sm"></select>
+                    </div>
+                </div>
+                
+                <div class="cal-grid text-center text-gray-500 text-xs mb-1">
+                    <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                </div>
+                <div id="shiftGrid" class="cal-grid mb-4"></div>
+
+                <div class="flex flex-wrap gap-3 text-xs justify-center orbitron">
+                    <span class="text-cyan-400">LD: Long Day</span>
+                    <span class="text-purple-400">LTL: Late Twilight</span>
+                    <span class="text-green-400">E: Early</span>
+                    <span class="text-pink-500">L: Late</span>
+                    <span class="text-orange-400">OC: On Call</span>
+                </div>
+            </section>
+        </main>
+
+        <!-- Right Side Panel -->
+        <aside class="w-96 glass-panel border-l flex flex-col h-full">
+            
+            <!-- Quick Add Tab -->
+            <div class="bg-purple-900/40 p-4 border-b border-purple-500">
+                <h3 class="text-purple-300 orbitron mb-3 flex items-center gap-2">
+                    <span class="text-lg">⚡</span> QUICK ADD
+                </h3>
+                <div class="flex flex-col gap-2">
+                    <div class="flex gap-2">
+                        <input type="date" id="qaDate" class="flex-1 bg-black/50 border border-purple-500 text-white p-2 rounded text-sm">
+                        <input type="time" id="qaTime" class="w-24 bg-black/50 border border-purple-500 text-white p-2 rounded text-sm">
+                    </div>
+                    <input type="text" id="qaTitle" placeholder="Event details..." class="bg-black/50 border border-purple-500 text-white p-2 rounded text-sm">
+                    <div class="flex gap-2 mt-1">
+                        <button onclick="quickAdd('appt')" class="flex-1 text-cyan-400 border border-cyan-400 rounded py-1 text-sm hover:bg-cyan-900/30">Appt</button>
+                        <button onclick="quickAdd('todo')" class="flex-1 text-pink-500 border border-pink-500 rounded py-1 text-sm hover:bg-pink-900/30">To-Do</button>
+                        <button onclick="quickAdd('event')" class="flex-1 text-green-400 border border-green-400 rounded py-1 text-sm hover:bg-green-900/30">Event</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Events List Container -->
-            <div class="flex-1 overflow-y-auto pr-2 flex flex-col gap-4 max-h-[500px]">
-                
-                <!-- Appointments -->
-                <div>
-                    <h4 class="orbitron text-cyan-400 text-sm mb-2 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_5px_#00f3ff]"></span>
-                        Appointments
-                    </h4>
-                    <div id="aptList" class="flex flex-col gap-2">
-                        <!-- populated by js -->
-                    </div>
+            <!-- Panel Content -->
+            <div class="p-6 flex-1 overflow-y-auto flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="panelTitle" class="text-2xl orbitron text-white">Upcoming</h2>
+                    <button id="closePanelBtn" class="text-gray-500 hover:text-white hidden text-xl">✕</button>
                 </div>
-
-                <!-- To-Dos -->
-                <div>
-                    <h4 class="orbitron text-pink-400 text-sm mb-2 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-pink-400 shadow-[0_0_5px_#ff00ff]"></span>
-                        To-Do List
-                    </h4>
-                    <div id="todoList" class="flex flex-col gap-2">
-                         <!-- populated by js -->
-                    </div>
-                </div>
-
-                <!-- Events -->
-                <div>
-                    <h4 class="orbitron text-green-400 text-sm mb-2 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_5px_#39ff14]"></span>
-                        Events
-                    </h4>
-                    <div id="eventList" class="flex flex-col gap-2">
-                         <!-- populated by js -->
-                    </div>
-                </div>
-
-                <div id="emptyState" class="text-center text-gray-500 py-8 italic hidden">
-                    No signals detected for this cycle.
-                </div>
+                <div id="eventList" class="flex flex-col gap-3 flex-1"></div>
             </div>
-        </section>
+        </aside>
 
-            <!-- Quick Add Panel -->
-            <div class="relative pt-8 slide-in w-full">
-                <!-- Neon Tab -->
-                <div class="absolute top-0 left-0 bg-[var(--panel-bg)] border px-6 py-2 rounded-t-xl z-10 backdrop-blur-md flex items-center justify-center"
-                     style="border-color: var(--neon-purple); border-bottom-color: var(--panel-bg); border-bottom-width: 2px; box-shadow: 0 -8px 15px -3px rgba(188,19,254,0.3), inset 0 5px 10px -3px rgba(188,19,254,0.2); padding-bottom: 10px; transform: translateY(1px);">
-                    <h3 class="text-lg font-bold uppercase tracking-wide orbitron" style="text-shadow: 0 0 8px var(--neon-purple), 0 0 20px var(--neon-purple); color: #fff;">Quick Add</h3>
+        <!-- Shift Picker Modal (Hidden) -->
+        <div id="shiftModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+            <div class="glass-panel p-6 rounded-lg border-purple-500 border max-w-xs w-full">
+                <h3 class="orbitron text-purple-400 mb-4 text-center">Select Shift</h3>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <button onclick="setShift('LD')" class="border border-cyan-400 text-cyan-400 py-2 hover:bg-cyan-400/20">LD</button>
+                    <button onclick="setShift('LTL')" class="border border-purple-400 text-purple-400 py-2 hover:bg-purple-400/20">LTL</button>
+                    <button onclick="setShift('E')" class="border border-green-400 text-green-400 py-2 hover:bg-green-400/20">E</button>
+                    <button onclick="setShift('L')" class="border border-pink-500 text-pink-500 py-2 hover:bg-pink-500/20">L</button>
                 </div>
-                
-                <section id="quickAddPanel" class="neon-box p-6 pt-6 flex flex-col gap-4 relative z-0 rounded-tl-none" 
-                         style="border-color: var(--neon-purple); box-shadow: 0 5px 15px rgba(188, 19, 254, 0.1), inset 0 0 20px rgba(188, 19, 254, 0.05);">
-                    <div class="flex flex-col gap-3 bg-black/40 p-4 rounded-lg border border-white/5">
-                        <div class="flex gap-2">
-                            <input type="date" id="qaDate" class="neon-input flex-1 text-sm" style="color-scheme: dark;">
-                            <input type="time" id="qaTime" class="neon-input w-24 text-sm" style="color-scheme: dark;">
-                        </div>
-                        <input type="text" id="qaText" class="neon-input text-sm" placeholder="Signal details...">
-                        <div class="flex gap-2 mt-1">
-                            <button onclick="quickAdd('apt')" class="flex-1 py-2 text-sm orbitron border border-cyan-400 text-cyan-400 rounded transition-all hover:bg-cyan-400 hover:text-black shadow-[0_0_5px_rgba(0,243,255,0.3)]">+ Appt</button>
-                            <button onclick="quickAdd('todo')" class="flex-1 py-2 text-sm orbitron border border-pink-500 text-pink-500 rounded transition-all hover:bg-pink-500 hover:text-black shadow-[0_0_5px_rgba(255,0,255,0.3)]">+ To-Do</button>
-                            <button onclick="quickAdd('event')" class="flex-1 py-2 text-sm orbitron border border-green-400 text-green-400 rounded transition-all hover:bg-green-400 hover:text-black shadow-[0_0_5px_rgba(57,255,20,0.3)]">+ Event</button>
-                        </div>
-                    </div>
-                </section>
+                <button onclick="toggleOnCall()" class="w-full border border-orange-400 text-orange-400 py-2 hover:bg-orange-400/20 mb-2">Toggle On Call (OC)</button>
+                <button onclick="setShift(null)" class="w-full border border-red-500 text-red-500 py-2 hover:bg-red-500/20 mb-4">Delete Shift</button>
+                <button onclick="closeShiftModal()" class="w-full text-gray-400 text-sm underline">Cancel</button>
             </div>
         </div>
-
-    </main>
+    </div>
 
     <script>
-        // --- State Management ---
-        let currentDate = new Date(2026, 10, 3); // Defaulting to Nov 3, 2026 as per context
-        let shiftCurrentDate = new Date(2026, 10, 3); // Separate state for work shifts
-        let selectedDateStr = null;
-        let currentEventType = 'apt'; // 'apt' or 'todo'
+        // --- 1. LOCAL STORAGE SETUP ---
+        // This is the fix: Load existing data from the browser, or start fresh if none exists.
+        let events = JSON.parse(localStorage.getItem('neonEvents')) || [];
+        let shifts = JSON.parse(localStorage.getItem('neonShifts')) || {};
 
-        // School Term Data (from image)
-        const halfTermHolidays = [
-            { start: '2026-10-26', end: '2026-10-30' },
-            { start: '2026-12-21', end: '2027-01-01' },
-            { start: '2027-02-15', end: '2027-02-19' },
-            { start: '2027-03-26', end: '2027-04-09' },
-            { start: '2027-05-31', end: '2027-06-04' }
-        ];
-
-        const insetDays = [
-            '2026-09-01', '2026-09-02', '2026-11-13', '2027-01-04', '2027-06-28'
-        ];
-
-        // Mock Shift Data
-        const shiftsData = {
-            '2026-11-04': 'LD',
-            '2026-11-05': 'E',
-            '2026-11-08': 'L',
-            '2026-11-12': 'LTL',
-            '2026-11-15': 'LD',
-            '2026-11-20': 'E',
-            '2026-11-22': 'LTL',
-            '2026-12-01': 'LD',
-            '2026-12-05': 'LTL'
-        };
-
-        // Track On-Call status independently
-        const onCallData = {
-            '2026-11-15': true,
-            '2026-11-20': true
-        };
-
-        // Mock Data Storage (Key: YYYY-MM-DD, Value: Array of event objects)
-        const eventsData = {
-            '2026-11-03': [
-                { id: 1, type: 'apt', text: 'System Maintenance @ 0900', done: false },
-                { id: 2, type: 'todo', text: 'Upgrade Cybernetics', done: true },
-                { id: 3, type: 'todo', text: 'Pay Syndicate Dues', done: false }
-            ],
-            '2026-11-15': [
-                { id: 4, type: 'apt', text: 'Meeting with Fixer', done: false }
-            ]
-        };
-
-        // --- DOM Elements ---
-        const calendarGrid = document.getElementById('calendarGrid');
-        const monthYearDisplay = document.getElementById('monthYearDisplay');
-        const eventPanel = document.getElementById('eventPanel');
-        const selectedDateDisplay = document.getElementById('selectedDateDisplay');
-        const aptList = document.getElementById('aptList');
-        const todoList = document.getElementById('todoList');
-        const eventList = document.getElementById('eventList');
-        const eventInput = document.getElementById('eventInput');
-        const emptyState = document.getElementById('emptyState');
-        const closePanelBtn = document.getElementById('closePanelBtn');
-        const addEventSection = document.getElementById('addEventSection');
-        const addEventForm = document.getElementById('addEventForm');
-        const showAddFormBtn = document.getElementById('showAddFormBtn');
-        
-        const btnAptSelect = document.getElementById('btnAptSelect');
-        const btnTodoSelect = document.getElementById('btnTodoSelect');
-        const btnEventSelect = document.getElementById('btnEventSelect');
-
-        const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-
-        // --- Initialization ---
-        function init() {
-            renderCalendar();
-            renderEvents();
-            renderShifts();
+        // Helper function to save data every time a change is made
+        function saveState() {
+            localStorage.setItem('neonEvents', JSON.stringify(events));
+            localStorage.setItem('neonShifts', JSON.stringify(shifts));
         }
 
-        // --- Calendar Logic ---
+        // --- CALENDAR LOGIC ---
+        let currentDate = new Date();
+        let selectedDate = null;
+        let activeShiftDateStr = null;
+
+        // UK Dates (Example Data)
+        const ukDates = {
+            '2026-11-13': { type: 'inset' },
+            '2026-12-25': { type: 'hol' },
+            '2026-12-26': { type: 'hol' }
+        };
+
+        const bibleVerses = [
+            "I can do all things through Christ which strengtheneth me. - Phil 4:13",
+            "The Lord is my shepherd; I shall not want. - Psalm 23:1",
+            "Be strong and of a good courage, fear not... - Deut 31:6"
+        ];
+        document.getElementById('bible-verse').innerText = bibleVerses[new Date().getDate() % bibleVerses.length];
+
         function renderCalendar() {
-            calendarGrid.innerHTML = '';
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
             
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             
-            monthYearDisplay.innerText = `${monthNames[month]} ${year}`;
+            document.getElementById('currentMonthYear').innerText = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
             
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             
-            // Fill empty slots before 1st of month
             for (let i = 0; i < firstDay; i++) {
-                const emptyCell = document.createElement('div');
-                emptyCell.className = 'day-cell empty';
-                calendarGrid.appendChild(emptyCell);
+                grid.appendChild(document.createElement('div'));
             }
             
-            // Fill days of the month
-            for (let day = 1; day <= daysInMonth; day++) {
-                const cell = document.createElement('div');
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'cal-day';
+                if (selectedDate === dateStr) dayDiv.classList.add('active');
                 
-                cell.className = `day-cell ${dateStr === selectedDateStr ? 'active' : ''}`;
-                cell.onclick = () => selectDate(dateStr);
+                dayDiv.innerHTML = `<span class="text-sm font-bold">${i}</span>`;
                 
-                // Day Number
-                const span = document.createElement('span');
-                span.className = 'day-number orbitron';
-                span.innerText = day;
-                cell.appendChild(span);
-
-                // Add School Term Badges
-                let schoolLabel = '';
-                let schoolClass = '';
-                
-                const currentDateObj = new Date(year, month, day);
-                const dayOfWeek = currentDateObj.getDay();
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-                if (!isWeekend) {
-                    if (insetDays.includes(dateStr)) {
-                        schoolLabel = 'INSET';
-                        schoolClass = 't-inset';
-                    } else {
-                        let isHol = false;
-                        for (let range of halfTermHolidays) {
-                            if (dateStr >= range.start && dateStr <= range.end) {
-                                isHol = true; break;
-                            }
-                        }
-                        if (isHol) {
-                            schoolLabel = 'HOL';
-                            schoolClass = 't-hol';
-                        }
-                    }
+                // Add UK Date Badges
+                if (ukDates[dateStr]) {
+                    if(ukDates[dateStr].type === 'hol') dayDiv.innerHTML += `<span class="badge badge-hol">HOL</span>`;
+                    if(ukDates[dateStr].type === 'inset') dayDiv.innerHTML += `<span class="badge badge-inset">INSET</span>`;
                 }
 
-                if (schoolLabel) {
-                    const badge = document.createElement('div');
-                    badge.className = `term-badge ${schoolClass}`;
-                    // Use just the first letter for space conservation on smaller screens
-                    badge.innerText = window.innerWidth < 768 ? schoolLabel.charAt(0) : schoolLabel;
-                    cell.appendChild(badge);
-                }
+                // Add Event Dots
+                const dayEvents = events.filter(e => e.date === dateStr);
+                const dotsDiv = document.createElement('div');
+                dotsDiv.className = 'flex flex-wrap gap-1 mt-1 justify-end w-full';
+                dayEvents.forEach(e => {
+                    const dot = document.createElement('div');
+                    dot.className = `event-dot dot-${e.type}`;
+                    dotsDiv.appendChild(dot);
+                });
+                dayDiv.appendChild(dotsDiv);
                 
-                // Event Indicators (Dots)
-                const dayEvents = eventsData[dateStr] || [];
-                if (dayEvents.length > 0) {
-                    const indicatorDiv = document.createElement('div');
-                    indicatorDiv.className = 'event-indicator';
-                    
-                    const hasApt = dayEvents.some(e => e.type === 'apt');
-                    const hasTodo = dayEvents.some(e => e.type === 'todo');
-                    const hasEvent = dayEvents.some(e => e.type === 'event');
-                    
-                    if (hasApt) {
-                        const dot = document.createElement('div');
-                        dot.className = 'dot dot-apt';
-                        indicatorDiv.appendChild(dot);
-                    }
-                    if (hasTodo) {
-                        const dot = document.createElement('div');
-                        dot.className = 'dot dot-todo';
-                        indicatorDiv.appendChild(dot);
-                    }
-                    if (hasEvent) {
-                        const dot = document.createElement('div');
-                        dot.className = 'dot dot-event';
-                        indicatorDiv.appendChild(dot);
-                    }
-                    cell.appendChild(indicatorDiv);
-                }
-                
-                calendarGrid.appendChild(cell);
+                dayDiv.onclick = () => selectDate(dateStr);
+                grid.appendChild(dayDiv);
             }
         }
 
-        function changeMonth(offset) {
-            currentDate.setMonth(currentDate.getMonth() + offset);
-            renderCalendar();
-            // Shifts remain independent now so we don't call renderShifts() here.
+        // --- SHIFT LOGIC ---
+        let shiftCurrentDate = new Date();
+
+        function initShiftSelects() {
+            const mSel = document.getElementById('shiftMonth');
+            const ySel = document.getElementById('shiftYear');
+            
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            months.forEach((m, i) => { mSel.innerHTML += `<option value="${i}">${m}</option>`; });
+            
+            const currentY = new Date().getFullYear();
+            for(let i = currentY - 1; i <= currentY + 3; i++) {
+                ySel.innerHTML += `<option value="${i}">${i}</option>`;
+            }
+            
+            mSel.value = shiftCurrentDate.getMonth();
+            ySel.value = shiftCurrentDate.getFullYear();
+            
+            mSel.onchange = () => { shiftCurrentDate.setMonth(mSel.value); renderShifts(); };
+            ySel.onchange = () => { shiftCurrentDate.setFullYear(ySel.value); renderShifts(); };
         }
 
-        // --- Interaction Logic ---
+        function renderShifts() {
+            const grid = document.getElementById('shiftGrid');
+            grid.innerHTML = '';
+            
+            const year = shiftCurrentDate.getFullYear();
+            const month = shiftCurrentDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            for (let i = 0; i < firstDay; i++) { grid.appendChild(document.createElement('div')); }
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const shiftData = shifts[dateStr] || {};
+                
+                const div = document.createElement('div');
+                div.className = `shift-block ${shiftData.shift ? 'shift-'+shiftData.shift : ''}`;
+                div.innerHTML = `
+                    <div class="text-[0.6rem] text-gray-500 absolute top-0 left-1">${i}</div>
+                    ${shiftData.shift ? shiftData.shift : '<span class="text-gray-700 font-normal">+</span>'}
+                    ${shiftData.oc ? '<span class="badge-oc">OC</span>' : ''}
+                `;
+                div.onclick = () => openShiftModal(dateStr);
+                grid.appendChild(div);
+            }
+        }
+
+        function openShiftModal(dateStr) {
+            activeShiftDateStr = dateStr;
+            document.getElementById('shiftModal').classList.remove('hidden');
+        }
+        function closeShiftModal() {
+            document.getElementById('shiftModal').classList.add('hidden');
+            activeShiftDateStr = null;
+        }
+        function setShift(shiftCode) {
+            if(!shifts[activeShiftDateStr]) shifts[activeShiftDateStr] = {};
+            
+            if (shiftCode === null) {
+                // Delete shift logic
+                delete shifts[activeShiftDateStr];
+            } else {
+                shifts[activeShiftDateStr].shift = shiftCode;
+            }
+            saveState(); // SAVE TO LOCAL STORAGE
+            renderShifts();
+            closeShiftModal();
+        }
+        function toggleOnCall() {
+            if(!shifts[activeShiftDateStr]) shifts[activeShiftDateStr] = {};
+            shifts[activeShiftDateStr].oc = !shifts[activeShiftDateStr].oc;
+            
+            if(!shifts[activeShiftDateStr].shift && !shifts[activeShiftDateStr].oc) {
+                delete shifts[activeShiftDateStr];
+            }
+            saveState(); // SAVE TO LOCAL STORAGE
+            renderShifts();
+            closeShiftModal();
+        }
+
+        // --- EVENT PANEL LOGIC ---
         function selectDate(dateStr) {
-            selectedDateStr = dateStr;
-            renderCalendar(); // Re-render to update active styling
-            
-            // Retrigger animation
-            eventPanel.classList.remove('slide-in');
-            void eventPanel.offsetWidth; // trigger reflow
-            eventPanel.classList.add('slide-in');
-            
+            selectedDate = dateStr;
+            document.getElementById('panelTitle').innerText = dateStr;
+            document.getElementById('closePanelBtn').classList.remove('hidden');
+            renderCalendar();
             renderEvents();
         }
 
-        function closePanel() {
-            selectedDateStr = null;
-            renderCalendar(); // clear active state
-            
-            // Retrigger animation for smooth transition
-            eventPanel.classList.remove('slide-in');
-            void eventPanel.offsetWidth;
-            eventPanel.classList.add('slide-in');
-            
+        document.getElementById('closePanelBtn').onclick = () => {
+            selectedDate = null;
+            document.getElementById('panelTitle').innerText = 'Upcoming';
+            document.getElementById('closePanelBtn').classList.add('hidden');
+            renderCalendar();
             renderEvents();
-        }
-
-        function toggleAddForm(show) {
-            if (show) {
-                showAddFormBtn.style.display = 'none';
-                addEventForm.style.display = 'flex';
-                eventInput.focus();
-            } else {
-                showAddFormBtn.style.display = 'block';
-                addEventForm.style.display = 'none';
-            }
-        }
-
-        function setEventType(type) {
-            currentEventType = type;
-            
-            btnAptSelect.className = 'flex-1 py-2 text-sm orbitron border border-gray-600 text-gray-400 rounded transition-all hover:border-cyan-400 hover:text-cyan-400';
-            btnTodoSelect.className = 'flex-1 py-2 text-sm orbitron border border-gray-600 text-gray-400 rounded transition-all hover:border-pink-500 hover:text-pink-500';
-            btnEventSelect.className = 'flex-1 py-2 text-sm orbitron border border-gray-600 text-gray-400 rounded transition-all hover:border-green-400 hover:text-green-400';
-
-            if (type === 'apt') {
-                btnAptSelect.className = 'flex-1 py-2 text-sm orbitron border border-cyan-400 text-cyan-400 rounded transition-all bg-cyan-400/20 shadow-[0_0_10px_rgba(0,243,255,0.3)]';
-            } else if (type === 'todo') {
-                btnTodoSelect.className = 'flex-1 py-2 text-sm orbitron border border-pink-500 text-pink-500 rounded transition-all bg-pink-500/20 shadow-[0_0_10px_rgba(255,0,255,0.3)]';
-            } else {
-                btnEventSelect.className = 'flex-1 py-2 text-sm orbitron border border-green-400 text-green-400 rounded transition-all bg-green-400/20 shadow-[0_0_10px_rgba(57,255,20,0.3)]';
-            }
-            eventInput.focus();
-        }
-
-        // --- Event Management ---
-        function getTodayStr() {
-            const today = new Date();
-            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        }
+        };
 
         function renderEvents() {
-            aptList.innerHTML = '';
-            todoList.innerHTML = '';
-            eventList.innerHTML = '';
+            const list = document.getElementById('eventList');
+            list.innerHTML = '';
             
-            let eventsToRender = [];
-            let isSpecificDate = !!selectedDateStr;
-
-            if (isSpecificDate) {
-                addEventSection.style.display = 'flex';
-                toggleAddForm(false); // Reset to just the button when switching dates
-                closePanelBtn.style.display = 'block';
-                
-                const parts = selectedDateStr.split('-');
-                const dateObj = new Date(parts[0], parseInt(parts[1])-1, parts[2]);
-                selectedDateDisplay.innerText = `${monthNames[dateObj.getMonth()]} ${parts[2]}, ${parts[0]}`;
-                
-                eventsToRender = eventsData[selectedDateStr] || [];
+            let displayEvents = events;
+            if (selectedDate) {
+                displayEvents = events.filter(e => e.date === selectedDate);
             } else {
-                addEventSection.style.display = 'none';
-                closePanelBtn.style.display = 'none';
-                selectedDateDisplay.innerText = 'Upcoming Events';
-                
-                const todayStr = getTodayStr();
-                Object.keys(eventsData).sort().forEach(date => {
-                    if (date >= todayStr) {
-                        eventsData[date].forEach(event => {
-                            eventsToRender.push({ ...event, date });
-                        });
-                    }
-                });
+                const today = new Date().toISOString().split('T')[0];
+                displayEvents = events.filter(e => e.date >= today).sort((a,b) => a.date.localeCompare(b.date));
             }
-            
-            const apts = eventsToRender.filter(e => e.type === 'apt');
-            const todos = eventsToRender.filter(e => e.type === 'todo');
-            const events = eventsToRender.filter(e => e.type === 'event');
-            
-            if (apts.length === 0 && todos.length === 0 && events.length === 0) {
-                emptyState.style.display = 'block';
-                aptList.parentElement.style.display = 'none';
-                todoList.parentElement.style.display = 'none';
-                eventList.parentElement.style.display = 'none';
+
+            if (displayEvents.length === 0) {
+                list.innerHTML = `<div class="text-gray-500 text-center italic mt-10">No events found.</div>`;
                 return;
-            } else {
-                emptyState.style.display = 'none';
-                aptList.parentElement.style.display = apts.length ? 'block' : 'none';
-                todoList.parentElement.style.display = todos.length ? 'block' : 'none';
-                eventList.parentElement.style.display = events.length ? 'block' : 'none';
             }
-            
-            // Render Appointments
-            apts.forEach(event => {
+
+            displayEvents.forEach(ev => {
                 const el = document.createElement('div');
-                el.className = 'list-item apt p-3 rounded flex justify-between items-center shadow-md';
+                const colorClass = ev.type === 'appt' ? 'border-cyan-400' : (ev.type === 'todo' ? 'border-pink-500' : 'border-green-400');
+                const titleColor = ev.type === 'appt' ? 'text-cyan-400' : (ev.type === 'todo' ? 'text-pink-500' : 'text-green-400');
                 
-                let dateLabel = (!isSpecificDate && event.date) ? `<div class="text-xs text-cyan-500 orbitron mb-1">${monthNames[parseInt(event.date.split('-')[1])-1]} ${event.date.split('-')[2]}</div>` : '';
-                let deleteBtn = isSpecificDate ? `<button onclick="deleteEvent(${event.id})" class="text-gray-500 hover:text-red-500 transition-colors px-2">✕</button>` : '';
-
-                el.innerHTML = `
-                    <div class="flex flex-col">
-                        ${dateLabel}
-                        <span class="text-white text-lg tracking-wide">${event.text}</span>
-                    </div>
-                    ${deleteBtn}
-                `;
-                aptList.appendChild(el);
-            });
-            
-            // Render To-Dos
-            todos.forEach(event => {
-                const el = document.createElement('div');
-                el.className = `list-item todo p-3 rounded flex justify-between items-center shadow-md todo-item ${event.done ? 'done' : ''}`;
+                el.className = `p-3 border-l-4 ${colorClass} bg-black/40 rounded flex justify-between items-center`;
                 
-                let dateLabel = (!isSpecificDate && event.date) ? `<div class="text-xs text-pink-500 orbitron mb-1">${monthNames[parseInt(event.date.split('-')[1])-1]} ${event.date.split('-')[2]}</div>` : '';
-                let interactive = isSpecificDate ? `onchange="toggleTodo(${event.id})"` : 'disabled';
-                let deleteBtn = isSpecificDate ? `<button onclick="deleteEvent(${event.id})" class="text-gray-500 hover:text-red-500 transition-colors px-2">✕</button>` : '';
-
-                el.innerHTML = `
-                    <div class="flex items-center gap-3 overflow-hidden">
-                        <input type="checkbox" class="todo-checkbox" ${event.done ? 'checked' : ''} ${interactive}>
-                        <div class="flex flex-col">
-                            ${dateLabel}
-                            <span class="text-white text-lg tracking-wide truncate">${event.text}</span>
-                        </div>
-                    </div>
-                    ${deleteBtn}
-                `;
-                todoList.appendChild(el);
-            });
-
-            // Render Events
-            events.forEach(event => {
-                const el = document.createElement('div');
-                el.className = 'list-item event p-3 rounded flex justify-between items-center shadow-md';
+                let content = `<div>`;
+                if (!selectedDate) content += `<div class="text-xs text-gray-400 mb-1">${ev.date}</div>`;
+                content += `<div class="${titleColor} font-bold flex items-center gap-2">
+                    ${ev.type === 'todo' ? `<input type="checkbox" ${ev.completed ? 'checked' : ''} onchange="toggleTodo('${ev.id}')">` : ''}
+                    <span class="${ev.completed ? 'line-through text-gray-500' : ''}">${ev.title}</span>
+                </div>`;
+                if (ev.time) content += `<div class="text-xs text-gray-400 mt-1">🕒 ${ev.time}</div>`;
+                content += `</div>`;
                 
-                let dateLabel = (!isSpecificDate && event.date) ? `<div class="text-xs text-green-500 orbitron mb-1">${monthNames[parseInt(event.date.split('-')[1])-1]} ${event.date.split('-')[2]}</div>` : '';
-                let deleteBtn = isSpecificDate ? `<button onclick="deleteEvent(${event.id})" class="text-gray-500 hover:text-red-500 transition-colors px-2">✕</button>` : '';
-
-                el.innerHTML = `
-                    <div class="flex flex-col">
-                        ${dateLabel}
-                        <span class="text-white text-lg tracking-wide">${event.text}</span>
-                    </div>
-                    ${deleteBtn}
-                `;
-                eventList.appendChild(el);
+                content += `<button onclick="deleteEvent('${ev.id}')" class="text-red-500 hover:text-red-400 text-sm">✕</button>`;
+                el.innerHTML = content;
+                list.appendChild(el);
             });
         }
 
-        function addEvent() {
-            const text = eventInput.value.trim();
-            const time = document.getElementById('eventTimeInput').value;
-            if (!text || !selectedDateStr) return;
+        function quickAdd(type) {
+            const dateStr = document.getElementById('qaDate').value;
+            const timeStr = document.getElementById('qaTime').value;
+            const title = document.getElementById('qaTitle').value;
             
-            if (!eventsData[selectedDateStr]) {
-                eventsData[selectedDateStr] = [];
-            }
+            if (!dateStr || !title) return alert('Date and Details are required!');
             
-            let eventText = text;
-            if (time) {
-                eventText = `${text} @ ${time}`;
-            }
-
-            const newEvent = {
-                id: Date.now(),
-                type: currentEventType,
-                text: eventText,
-                done: false
-            };
+            events.push({
+                id: Math.random().toString(36).substr(2, 9),
+                date: dateStr,
+                time: timeStr,
+                title: title,
+                type: type,
+                completed: false
+            });
             
-            eventsData[selectedDateStr].push(newEvent);
-            eventInput.value = '';
-            document.getElementById('eventTimeInput').value = '';
+            document.getElementById('qaTitle').value = '';
+            document.getElementById('qaTime').value = '';
             
-            renderEvents();
-            renderCalendar(); // Update dots on grid
-        }
-
-        function handleEnter(e) {
-            if (e.key === 'Enter') {
-                addEvent();
-            }
-        }
-
-        function deleteEvent(id) {
-            if (!selectedDateStr || !eventsData[selectedDateStr]) return;
+            saveState(); // SAVE TO LOCAL STORAGE
             
-            eventsData[selectedDateStr] = eventsData[selectedDateStr].filter(e => e.id !== id);
-            if (eventsData[selectedDateStr].length === 0) {
-                delete eventsData[selectedDateStr];
-            }
-            
-            renderEvents();
-            renderCalendar();
+            if(selectedDate && selectedDate !== dateStr) selectDate(dateStr);
+            else { renderCalendar(); renderEvents(); }
         }
 
         function toggleTodo(id) {
-            if (!selectedDateStr || !eventsData[selectedDateStr]) return;
-            
-            const event = eventsData[selectedDateStr].find(e => e.id === id);
-            if (event) {
-                event.done = !event.done;
+            const ev = events.find(e => e.id === id);
+            if (ev) {
+                ev.completed = !ev.completed;
+                saveState(); // SAVE TO LOCAL STORAGE
                 renderEvents();
             }
         }
 
-        // --- Quick Add Panel Logic ---
-        function quickAdd(type) {
-            const dateVal = document.getElementById('qaDate').value;
-            const timeVal = document.getElementById('qaTime').value;
-            const textVal = document.getElementById('qaText').value.trim();
-
-            if (!dateVal || !textVal) return; // Require at least a date and description
-
-            let eventText = textVal;
-            if (timeVal) {
-                eventText = `${textVal} @ ${timeVal}`;
-            }
-
-            if (!eventsData[dateVal]) {
-                eventsData[dateVal] = [];
-            }
-
-            eventsData[dateVal].push({
-                id: Date.now(),
-                type: type,
-                text: eventText,
-                done: false
-            });
-
-            // Clear inputs
-            document.getElementById('qaDate').value = '';
-            document.getElementById('qaTime').value = '';
-            document.getElementById('qaText').value = '';
-
-            renderEvents();
+        function deleteEvent(id) {
+            events = events.filter(e => e.id !== id);
+            saveState(); // SAVE TO LOCAL STORAGE
             renderCalendar();
+            renderEvents();
         }
 
-        // --- Shifts Logic ---
-        window.setShift = function(dateStr, type, event) {
-            if (event) event.stopPropagation();
-            if (type) {
-                shiftsData[dateStr] = type;
+        // Background Snake Game Logic
+        const canvas = document.getElementById('snakeCanvas');
+        const ctx = canvas.getContext('2d');
+        // Initializing variables properly
+        let cols = 0; 
+        let rows = 0;
+        const size = 30;
+        let snake = [];
+        let food = {};
+        let d = {x: 1, y: 0};
+
+        function initSnake() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            cols = Math.floor(canvas.width / size);
+            rows = Math.floor(canvas.height / size);
+            snake = [{x: Math.floor(cols/2), y: Math.floor(rows/2)}];
+            placeFood();
+        }
+
+        function placeFood() {
+            food = {
+                x: Math.floor(Math.random() * cols),
+                y: Math.floor(Math.random() * rows)
+            };
+        }
+
+        function drawSnake() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw food
+            ctx.fillStyle = '#ff00ff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff00ff';
+            ctx.fillRect(food.x * size, food.y * size, size - 2, size - 2);
+            
+            // Draw snake
+            ctx.fillStyle = '#00f3ff';
+            ctx.shadowColor = '#00f3ff';
+            for (let i = 0; i < snake.length; i++) {
+                ctx.fillRect(snake[i].x * size, snake[i].y * size, size - 2, size - 2);
+            }
+            
+            // AI Movement logic (move towards food)
+            let head = snake[0];
+            if (head.x < food.x) d = {x: 1, y: 0};
+            else if (head.x > food.x) d = {x: -1, y: 0};
+            else if (head.y < food.y) d = {x: 0, y: 1};
+            else if (head.y > food.y) d = {x: 0, y: -1};
+
+            let newHead = {x: head.x + d.x, y: head.y + d.y};
+            snake.unshift(newHead);
+            
+            if (newHead.x === food.x && newHead.y === food.y) {
+                placeFood();
             } else {
-                delete shiftsData[dateStr];
+                snake.pop();
             }
-            renderShifts();
-        };
-
-        window.toggleOnCall = function(dateStr, event) {
-            if (event) event.stopPropagation();
-            if (onCallData[dateStr]) {
-                delete onCallData[dateStr];
-            } else {
-                onCallData[dateStr] = true;
-            }
-            renderShifts();
-        };
-
-        function changeShiftMonth() {
-            const monthSelect = document.getElementById('shiftMonthSelect');
-            const yearSelect = document.getElementById('shiftYearSelect');
-            if(monthSelect && yearSelect) {
-                shiftCurrentDate.setMonth(parseInt(monthSelect.value));
-                shiftCurrentDate.setFullYear(parseInt(yearSelect.value));
-                renderShifts();
-            }
+            
+            setTimeout(drawSnake, 150);
         }
 
-        function renderShifts() {
-            const shiftsGrid = document.getElementById('shiftsGrid');
-            if(!shiftsGrid) return;
-            shiftsGrid.innerHTML = '';
-            
-            const year = shiftCurrentDate.getFullYear();
-            const month = shiftCurrentDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            const monthSelect = document.getElementById('shiftMonthSelect');
-            if(monthSelect) monthSelect.value = month;
-            
-            const yearSelect = document.getElementById('shiftYearSelect');
-            if(yearSelect) yearSelect.value = year;
-
-            for (let day = 1; day <= daysInMonth; day++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const shift = shiftsData[dateStr];
-                const isOnCall = onCallData[dateStr];
-                
-                const shiftEl = document.createElement('div');
-                shiftEl.className = 'p-2 rounded bg-black/40 border border-white/5 flex flex-col items-center justify-center transition-all hover:bg-white/10 hover:border-purple-500/50 relative';
-                
-                const daySpan = document.createElement('span');
-                daySpan.className = 'text-[10px] text-gray-500 mb-1 pointer-events-none';
-                daySpan.innerText = day;
-                shiftEl.appendChild(daySpan);
-                
-                const shiftSpan = document.createElement('span');
-                shiftSpan.className = 'font-bold text-sm md:text-base pointer-events-none';
-                
-                if (shift === 'LD') { shiftSpan.innerText = 'LD'; shiftSpan.className += ' text-cyan-400 drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]'; }
-                else if (shift === 'LTL') { shiftSpan.innerText = 'LTL'; shiftSpan.className += ' text-pink-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]'; }
-                else if (shift === 'E') { shiftSpan.innerText = 'E'; shiftSpan.className += ' text-green-400 drop-shadow-[0_0_5px_rgba(57,255,20,0.8)]'; }
-                else if (shift === 'L') { shiftSpan.innerText = 'L'; shiftSpan.className += ' text-yellow-400 drop-shadow-[0_0_5px_rgba(255,255,0,0.8)]'; }
-                else { shiftSpan.style.display = 'none'; }
-                
-                shiftEl.appendChild(shiftSpan);
-                
-                // Add OC indicator if active
-                if (isOnCall) {
-                    const ocSpan = document.createElement('span');
-                    ocSpan.className = 'text-[9px] text-orange-500 font-bold orbitron drop-shadow-[0_0_5px_rgba(255,153,0,0.8)] absolute top-1 right-1 pointer-events-none';
-                    ocSpan.innerText = 'OC';
-                    shiftEl.appendChild(ocSpan);
-                }
-                
-                // Add Choice Menu
-                const menu = document.createElement('div');
-                menu.className = 'hidden absolute top-full left-1/2 -translate-x-1/2 mt-1 z-20 bg-[var(--bg-dark)] border border-purple-500 p-1 rounded flex flex-col gap-1 shadow-[0_0_10px_#bc13fe] shift-menu';
-                menu.innerHTML = `
-                    <button class="text-cyan-400 text-xs hover:bg-white/10 px-2 py-1 rounded orbitron" onclick="setShift('${dateStr}', 'LD', event)">LD</button>
-                    <button class="text-pink-400 text-xs hover:bg-white/10 px-2 py-1 rounded orbitron" onclick="setShift('${dateStr}', 'LTL', event)">LTL</button>
-                    <button class="text-green-400 text-xs hover:bg-white/10 px-2 py-1 rounded orbitron" onclick="setShift('${dateStr}', 'E', event)">E</button>
-                    <button class="text-yellow-400 text-xs hover:bg-white/10 px-2 py-1 rounded orbitron" onclick="setShift('${dateStr}', 'L', event)">L</button>
-                    <button class="text-red-500 text-xs hover:bg-white/10 px-2 py-1 rounded orbitron border-t border-gray-600 mt-1 pt-1" onclick="setShift('${dateStr}', '', event)">Delete Shift</button>
-                    <button class="text-orange-500 text-xs hover:bg-white/10 px-2 py-1 rounded orbitron border-t border-gray-600 mt-1 pt-1" onclick="toggleOnCall('${dateStr}', event)">${isOnCall ? '- OC' : '+ OC'}</button>
-                `;
-                
-                const addBtn = document.createElement('button');
-                addBtn.className = 'mt-1 text-gray-400 hover:text-white text-[10px] bg-white/5 hover:bg-white/20 rounded-full w-5 h-5 flex items-center justify-center transition-colors';
-                addBtn.innerText = (shift || isOnCall) ? '✎' : '+';
-                
-                addBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    document.querySelectorAll('.shift-menu').forEach(el => el.classList.add('hidden'));
-                    menu.classList.remove('hidden');
-                };
-                
-                shiftEl.appendChild(addBtn);
-                shiftEl.appendChild(menu);
-
-                shiftsGrid.appendChild(shiftEl);
-            }
-        }
+        // Init
+        document.getElementById('prevMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); };
+        document.getElementById('nextMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
         
-        // Hide shift menus when clicking anywhere else
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.shift-menu').forEach(el => el.classList.add('hidden'));
-        });
+        // Auto-set Quick Add date to today
+        document.getElementById('qaDate').value = new Date().toISOString().split('T')[0];
 
-        // --- Background Snake Game Logic ---
-        function initSnakeGame() {
-            const canvas = document.getElementById('snakeCanvas');
-            const ctx = canvas.getContext('2d');
-            const gridSize = 30; // Matches CSS background grid size
-            let cols, rows;
-            let snake = [];
-            let food = {};
-            let lastTime = 0;
-            const speed = 150; // ms per move (speed of the snake)
-
-            function resize() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                cols = Math.floor(canvas.width / gridSize);
-                rows = Math.floor(canvas.height / gridSize);
-                resetSnake();
-            }
-
-            function resetSnake() {
-                snake = [{x: Math.floor(cols / 2), y: Math.floor(rows / 2)}];
-                // Give it a starting tail
-                for(let i = 1; i < 4; i++) {
-                    snake.push({x: snake[0].x, y: snake[0].y + i});
-                }
-                spawnFood();
-            }
-
-            function spawnFood() {
-                let valid = false;
-                while(!valid) {
-                    food = {
-                        x: Math.floor(Math.random() * (cols - 2)) + 1,
-                        y: Math.floor(Math.random() * (rows - 2)) + 1
-                    };
-                    // Ensure food doesn't spawn on the snake
-                    valid = !snake.some(s => s.x === food.x && s.y === food.y);
-                }
-            }
-
-            function getAIMove() {
-                const head = snake[0];
-                const possibleMoves = [
-                    {dx: 1, dy: 0}, {dx: -1, dy: 0},
-                    {dx: 0, dy: 1}, {dx: 0, dy: -1}
-                ];
-                
-                // Filter out moves that would hit walls or the snake's own body
-                let safeMoves = possibleMoves.filter(m => {
-                    let nx = head.x + m.dx;
-                    let ny = head.y + m.dy;
-                    if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return false;
-                    for (let i = 0; i < snake.length - 1; i++) {
-                        if (snake[i].x === nx && snake[i].y === ny) return false;
-                    }
-                    return true;
-                });
-
-                if (safeMoves.length === 0) {
-                    resetSnake(); // Trap detected, reset
-                    return {dx: 0, dy: 0};
-                }
-
-                // Simple greedy algorithm: pick the safe move that gets closest to the food
-                safeMoves.sort((a, b) => {
-                    let distA = Math.abs((head.x + a.dx) - food.x) + Math.abs((head.y + a.dy) - food.y);
-                    let distB = Math.abs((head.x + b.dx) - food.x) + Math.abs((head.y + b.dy) - food.y);
-                    return distA - distB;
-                });
-
-                return safeMoves[0];
-            }
-
-            function update(time) {
-                requestAnimationFrame(update);
-                if (time - lastTime < speed) return;
-                lastTime = time;
-
-                let move = getAIMove();
-                if (move.dx === 0 && move.dy === 0) return;
-
-                let head = {x: snake[0].x + move.dx, y: snake[0].y + move.dy};
-                snake.unshift(head);
-
-                if (head.x === food.x && head.y === food.y) {
-                    spawnFood(); // Ate food, grow (don't pop tail)
-                } else {
-                    snake.pop(); // Remove tail segment
-                }
-
-                draw();
-            }
-
-            function draw() {
-                // Base background color
-                ctx.fillStyle = '#050508';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // Draw Food (Neon Pink)
-                ctx.fillStyle = '#ff00ff';
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ff00ff';
-                ctx.fillRect(food.x * gridSize + 1, food.y * gridSize + 1, gridSize - 2, gridSize - 2);
-
-                // Draw Snake (Neon Cyan)
-                ctx.fillStyle = '#00f3ff';
-                ctx.shadowColor = '#00f3ff';
-                snake.forEach((segment, index) => {
-                    ctx.shadowBlur = index === 0 ? 20 : 8; // Head glows brighter
-                    ctx.globalAlpha = Math.max(0.15, 1 - (index / (snake.length + 8))); // Fade tail
-                    ctx.fillRect(segment.x * gridSize + 1, segment.y * gridSize + 1, gridSize - 2, gridSize - 2);
-                });
-                
-                // Reset context styles
-                ctx.globalAlpha = 1.0;
-                ctx.shadowBlur = 0;
-            }
-
-            window.addEventListener('resize', resize);
-            resize();
-            requestAnimationFrame(update);
-        }
-
-        // Start App
-        window.onload = () => {
-            init();
-            initSnakeGame();
-        };
+        window.addEventListener('resize', initSnake);
+        initSnake();
+        drawSnake();
+        initShiftSelects();
+        renderCalendar();
+        renderShifts();
+        renderEvents();
     </script>
 </body>
 </html>
