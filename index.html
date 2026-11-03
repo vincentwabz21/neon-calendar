@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -111,7 +110,7 @@
                 </div>
                 
                 <div class="cal-grid mb-2 text-center text-gray-400 text-sm">
-                    <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+                    <div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div><div>SUN</div>
                 </div>
                 <div id="calendarGrid" class="cal-grid"></div>
                 
@@ -135,7 +134,7 @@
                 </div>
                 
                 <div class="cal-grid text-center text-gray-500 text-xs mb-1">
-                    <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
+                    <div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div><div>SUN</div>
                 </div>
                 <div id="shiftGrid" class="cal-grid mb-4"></div>
 
@@ -181,7 +180,7 @@
             </div>
         </aside>
 
-        <!-- Shift Picker Modal (Hidden) -->
+        <!-- Shift Picker Modal -->
         <div id="shiftModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
             <div class="glass-panel p-6 rounded-lg border-purple-500 border max-w-xs w-full">
                 <h3 class="orbitron text-purple-400 mb-4 text-center">Select Shift</h3>
@@ -200,11 +199,12 @@
 
     <script>
         // --- 1. LOCAL STORAGE SETUP ---
-        // This is the fix: Load existing data from the browser, or start fresh if none exists.
+        // This parses existing saved data, or starts fresh if empty
         let events = JSON.parse(localStorage.getItem('neonEvents')) || [];
         let shifts = JSON.parse(localStorage.getItem('neonShifts')) || {};
 
-        // Helper function to save data every time a change is made
+        // 2. SAVE FUNCTION
+        // This forces the browser to save your data permanently to local storage
         function saveState() {
             localStorage.setItem('neonEvents', JSON.stringify(events));
             localStorage.setItem('neonShifts', JSON.stringify(shifts));
@@ -215,7 +215,6 @@
         let selectedDate = null;
         let activeShiftDateStr = null;
 
-        // UK Dates (Example Data)
         const ukDates = {
             '2026-11-13': { type: 'inset' },
             '2026-12-25': { type: 'hol' },
@@ -238,10 +237,11 @@
             
             document.getElementById('currentMonthYear').innerText = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
             
-            const firstDay = new Date(year, month, 1).getDay();
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const emptyDays = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             
-            for (let i = 0; i < firstDay; i++) {
+            for (let i = 0; i < emptyDays; i++) {
                 grid.appendChild(document.createElement('div'));
             }
             
@@ -253,13 +253,11 @@
                 
                 dayDiv.innerHTML = `<span class="text-sm font-bold">${i}</span>`;
                 
-                // Add UK Date Badges
                 if (ukDates[dateStr]) {
                     if(ukDates[dateStr].type === 'hol') dayDiv.innerHTML += `<span class="badge badge-hol">HOL</span>`;
                     if(ukDates[dateStr].type === 'inset') dayDiv.innerHTML += `<span class="badge badge-inset">INSET</span>`;
                 }
 
-                // Add Event Dots
                 const dayEvents = events.filter(e => e.date === dateStr);
                 const dotsDiv = document.createElement('div');
                 dotsDiv.className = 'flex flex-wrap gap-1 mt-1 justify-end w-full';
@@ -303,10 +301,12 @@
             
             const year = shiftCurrentDate.getFullYear();
             const month = shiftCurrentDate.getMonth();
-            const firstDay = new Date(year, month, 1).getDay();
+            
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const emptyDays = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             
-            for (let i = 0; i < firstDay; i++) { grid.appendChild(document.createElement('div')); }
+            for (let i = 0; i < emptyDays; i++) { grid.appendChild(document.createElement('div')); }
             
             for (let i = 1; i <= daysInMonth; i++) {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
@@ -332,19 +332,19 @@
             document.getElementById('shiftModal').classList.add('hidden');
             activeShiftDateStr = null;
         }
+        
         function setShift(shiftCode) {
             if(!shifts[activeShiftDateStr]) shifts[activeShiftDateStr] = {};
-            
             if (shiftCode === null) {
-                // Delete shift logic
                 delete shifts[activeShiftDateStr];
             } else {
                 shifts[activeShiftDateStr].shift = shiftCode;
             }
-            saveState(); // SAVE TO LOCAL STORAGE
+            saveState(); // Trigger save
             renderShifts();
             closeShiftModal();
         }
+        
         function toggleOnCall() {
             if(!shifts[activeShiftDateStr]) shifts[activeShiftDateStr] = {};
             shifts[activeShiftDateStr].oc = !shifts[activeShiftDateStr].oc;
@@ -352,7 +352,7 @@
             if(!shifts[activeShiftDateStr].shift && !shifts[activeShiftDateStr].oc) {
                 delete shifts[activeShiftDateStr];
             }
-            saveState(); // SAVE TO LOCAL STORAGE
+            saveState(); // Trigger save
             renderShifts();
             closeShiftModal();
         }
@@ -432,7 +432,7 @@
             document.getElementById('qaTitle').value = '';
             document.getElementById('qaTime').value = '';
             
-            saveState(); // SAVE TO LOCAL STORAGE
+            saveState(); // Trigger save
             
             if(selectedDate && selectedDate !== dateStr) selectDate(dateStr);
             else { renderCalendar(); renderEvents(); }
@@ -442,14 +442,14 @@
             const ev = events.find(e => e.id === id);
             if (ev) {
                 ev.completed = !ev.completed;
-                saveState(); // SAVE TO LOCAL STORAGE
+                saveState(); // Trigger save
                 renderEvents();
             }
         }
 
         function deleteEvent(id) {
             events = events.filter(e => e.id !== id);
-            saveState(); // SAVE TO LOCAL STORAGE
+            saveState(); // Trigger save
             renderCalendar();
             renderEvents();
         }
@@ -457,9 +457,7 @@
         // Background Snake Game Logic
         const canvas = document.getElementById('snakeCanvas');
         const ctx = canvas.getContext('2d');
-        // Initializing variables properly
-        let cols = 0; 
-        let rows = 0;
+        let cols = 0, rows = 0;
         const size = 30;
         let snake = [];
         let food = {};
@@ -484,20 +482,17 @@
         function drawSnake() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Draw food
             ctx.fillStyle = '#ff00ff';
             ctx.shadowBlur = 10;
             ctx.shadowColor = '#ff00ff';
             ctx.fillRect(food.x * size, food.y * size, size - 2, size - 2);
             
-            // Draw snake
             ctx.fillStyle = '#00f3ff';
             ctx.shadowColor = '#00f3ff';
             for (let i = 0; i < snake.length; i++) {
                 ctx.fillRect(snake[i].x * size, snake[i].y * size, size - 2, size - 2);
             }
             
-            // AI Movement logic (move towards food)
             let head = snake[0];
             if (head.x < food.x) d = {x: 1, y: 0};
             else if (head.x > food.x) d = {x: -1, y: 0};
@@ -516,11 +511,8 @@
             setTimeout(drawSnake, 150);
         }
 
-        // Init
         document.getElementById('prevMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); };
         document.getElementById('nextMonth').onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
-        
-        // Auto-set Quick Add date to today
         document.getElementById('qaDate').value = new Date().toISOString().split('T')[0];
 
         window.addEventListener('resize', initSnake);
