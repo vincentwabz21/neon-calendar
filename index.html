@@ -354,12 +354,12 @@
 
     <!-- Day Click Modal -->
     <div id="dayEventModal" class="fixed inset-0 bg-black/80 z-[100] items-center justify-center backdrop-blur-sm" style="display: none;">
-        <div class="neon-box neon-box-pink p-6 w-full max-w-md flex flex-col gap-4 relative">
+        <div class="neon-box neon-box-pink p-5 w-[92%] max-w-md max-h-[90vh] overflow-y-auto flex flex-col gap-4 relative">
             <button onclick="closeDayModal()" class="absolute top-4 right-5 text-pink-500 hover:text-white text-2xl leading-none">✕</button>
-            <h3 class="text-xl font-bold glow-text-pink uppercase tracking-wide mb-2" id="modalDateDisplay">ADD SIGNAL</h3>
+            <h3 class="text-xl font-bold glow-text-pink uppercase tracking-wide mb-2 pr-6" id="modalDateDisplay">ADD SIGNAL</h3>
             
             <!-- Upcoming Events in Modal -->
-            <div id="modalUpcomingEvents" class="flex flex-col gap-2 max-h-40 overflow-y-auto text-sm"></div>
+            <div id="modalUpcomingEvents" class="flex flex-col gap-2 max-h-32 md:max-h-40 overflow-y-auto text-sm"></div>
 
             <div class="flex gap-2">
                 <button id="modalBtnApt" onclick="setModalEventType('apt')" class="flex-1 py-2 text-sm orbitron border border-cyan-400 text-cyan-400 rounded transition-all bg-cyan-400/20 shadow-[0_0_10px_rgba(0,243,255,0.3)]">Appt</button>
