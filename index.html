@@ -70,12 +70,12 @@
 
         /* Calendar Grid */
         .day-cell {
-            aspect-ratio: 1 / 1;
+            min-height: 55px; /* Crucial: Allows stretching on mobile to prevent overlapping */
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
-            padding-top: 10%;
+            justify-content: space-between; /* Top, Middle, Bottom exact spacing */
+            padding: 4px 2px;
             cursor: pointer;
             border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 8px;
@@ -83,6 +83,14 @@
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
+        }
+        
+        @media (min-width: 768px) {
+            .day-cell {
+                aspect-ratio: 1 / 1;
+                min-height: auto;
+                padding: 6px 4px;
+            }
         }
 
         .day-cell:hover:not(.empty) {
@@ -121,24 +129,38 @@
         }
 
         .day-cell .day-number {
-            font-size: 1.2rem;
+            font-size: 0.8rem;
             font-weight: 600;
+            line-height: 1;
             pointer-events: none;
+            margin-bottom: 2px;
+        }
+        
+        @media (min-width: 768px) {
+            .day-cell .day-number { font-size: 1.1rem; margin-bottom: 4px; }
         }
 
         .event-indicator {
             display: flex;
-            gap: 4px;
-            margin-top: auto;
-            margin-bottom: 10%;
+            gap: 3px;
+            height: 6px;
+            align-items: center;
+            justify-content: center;
             pointer-events: none;
+            margin-top: auto;
         }
         
         .dot {
-            width: 6px;
-            height: 6px;
+            width: 4px;
+            height: 4px;
             border-radius: 50%;
         }
+        
+        @media (min-width: 768px) {
+            .event-indicator { height: 8px; gap: 4px; }
+            .dot { width: 6px; height: 6px; }
+        }
+        
         .dot-apt { background: var(--neon-cyan); box-shadow: 0 0 5px var(--neon-cyan); }
         .dot-todo { background: var(--neon-pink); box-shadow: 0 0 5px var(--neon-pink); }
         .dot-event { background: var(--neon-green); box-shadow: 0 0 5px var(--neon-green); }
@@ -236,15 +258,18 @@
         /* Term Badges */
         .term-badge {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            font-size: 0.55rem;
+            top: 2px;
+            right: 2px;
+            font-size: 0.45rem;
             padding: 2px 4px;
             border-radius: 4px;
             font-family: 'Orbitron', sans-serif;
             font-weight: bold;
             pointer-events: none;
             z-index: 5;
+        }
+        @media (min-width: 768px) {
+            .term-badge { top: 4px; right: 4px; font-size: 0.55rem; }
         }
         .term-badge.t-inset {
             background: rgba(255, 255, 0, 0.15);
@@ -349,9 +374,6 @@
 
     </main>
 
-    <!-- Hover Tooltip -->
-    <div id="hoverTooltip" class="fixed pointer-events-none z-[200] bg-[var(--bg-dark)] border border-cyan-500/50 p-4 rounded-lg shadow-[0_0_20px_rgba(0,243,255,0.3)] min-w-[200px]" style="display: none; backdrop-filter: blur(10px);"></div>
-
     <!-- Day Click Modal -->
     <div id="dayEventModal" class="fixed inset-0 bg-black/80 z-[100] items-center justify-center backdrop-blur-sm" style="display: none;">
         <div class="neon-box neon-box-pink p-5 w-[92%] max-w-md max-h-[90vh] overflow-y-auto flex flex-col gap-4 relative">
@@ -404,7 +426,6 @@
 
         const insetDays = ['2026-09-01', '2026-09-02', '2026-11-13', '2027-01-04', '2027-06-28'];
 
-        // --- LOAD FROM LOCAL STORAGE (Fix for saving data) ---
         let eventsData = JSON.parse(localStorage.getItem('neonEventsData')) || {};
         let shiftsData = JSON.parse(localStorage.getItem('neonShiftsData')) || {};
         let onCallData = JSON.parse(localStorage.getItem('neonOnCallData')) || {};
@@ -414,7 +435,6 @@
             localStorage.setItem('neonShiftsData', JSON.stringify(shiftsData));
             localStorage.setItem('neonOnCallData', JSON.stringify(onCallData));
         }
-        // -----------------------------------------------------
 
         const calendarGrid = document.getElementById('calendarGrid');
         const monthYearDisplay = document.getElementById('monthYearDisplay');
@@ -427,74 +447,6 @@
         const closePanelBtn = document.getElementById('closePanelBtn');
 
         const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-
-        // --- HOVER TOOLTIP LOGIC ---
-        function showHoverTooltip(e, dateStr) {
-            const dayEvents = eventsData[dateStr] || [];
-            const shift = shiftsData[dateStr];
-            const isOnCall = onCallData[dateStr];
-
-            // Only show the tooltip if there are events or shifts on this day
-            if (dayEvents.length === 0 && !shift && !isOnCall) return;
-
-            let html = `<div class="orbitron text-cyan-400 mb-3 font-bold border-b border-cyan-500/30 pb-1 tracking-wider">${dateStr}</div>`;
-            
-            // Add Shift Info
-            if (shift || isOnCall) {
-                html += `<div class="mb-3 flex gap-2 items-center text-xs orbitron">`;
-                if (shift) {
-                    let sColor = shift === 'LD' ? 'text-cyan-400' : (shift === 'LTL' ? 'text-pink-400' : (shift === 'E' ? 'text-green-400' : 'text-yellow-400'));
-                    html += `<span class="text-gray-400">SHIFT:</span> <span class="${sColor} font-bold text-sm">${shift}</span>`;
-                }
-                if (isOnCall) html += `<span class="text-orange-500 font-bold bg-orange-500/20 px-1.5 py-0.5 rounded ml-auto">OC</span>`;
-                html += `</div>`;
-            }
-
-            // Add Events Info
-            if (dayEvents.length > 0) {
-                html += '<div class="flex flex-col gap-2">';
-                dayEvents.forEach(ev => {
-                    let color = ev.type === 'apt' ? 'text-cyan-400' : (ev.type === 'todo' ? 'text-pink-400' : 'text-green-400');
-                    let strike = ev.done ? 'line-through opacity-50 text-gray-500' : 'text-white';
-                    html += `<div class="flex items-start gap-2 text-sm">
-                        <span class="w-2 h-2 mt-1.5 rounded-full bg-current ${color} shadow-[0_0_5px_currentColor] flex-shrink-0"></span>
-                        <span class="${strike} break-words">${ev.text}</span>
-                    </div>`;
-                });
-                html += '</div>';
-            }
-
-            const tooltip = document.getElementById('hoverTooltip');
-            tooltip.innerHTML = html;
-            tooltip.style.display = 'block';
-            positionTooltip(e, tooltip);
-        }
-
-        function hideHoverTooltip() {
-            document.getElementById('hoverTooltip').style.display = 'none';
-        }
-
-        function moveHoverTooltip(e) {
-            const tooltip = document.getElementById('hoverTooltip');
-            if (tooltip.style.display === 'block') {
-                positionTooltip(e, tooltip);
-            }
-        }
-
-        function positionTooltip(e, tooltip) {
-            const tooltipWidth = tooltip.offsetWidth;
-            const tooltipHeight = tooltip.offsetHeight;
-            let x = e.clientX + 15;
-            let y = e.clientY + 15;
-
-            // Keep tooltip on screen if you get too close to the edges
-            if (x + tooltipWidth > window.innerWidth) x = e.clientX - tooltipWidth - 15;
-            if (y + tooltipHeight > window.innerHeight) y = e.clientY - tooltipHeight - 15;
-
-            tooltip.style.left = `${x}px`;
-            tooltip.style.top = `${y}px`;
-        }
-        // ---------------------------
 
         function init() {
             renderCalendar();
@@ -529,16 +481,13 @@
                 cell.className = `day-cell ${dateStr === selectedDateStr ? 'active' : ''} ${dateStr === actualTodayStr ? 'today' : ''}`;
                 cell.onclick = () => selectDate(dateStr);
                 
-                // Add Hover functionality
-                cell.onmouseenter = (e) => showHoverTooltip(e, dateStr);
-                cell.onmouseleave = hideHoverTooltip;
-                cell.onmousemove = moveHoverTooltip;
-                
+                // 1. TOP: Day Number
                 const span = document.createElement('span');
-                span.className = 'day-number orbitron';
+                span.className = 'day-number orbitron z-10';
                 span.innerText = day;
                 cell.appendChild(span);
 
+                // Check School Labels (Absolute position, doesn't affect flow)
                 let schoolLabel = '';
                 let schoolClass = '';
                 
@@ -571,38 +520,38 @@
                     cell.appendChild(badge);
                 }
                 
+                // 2. MIDDLE: Shift Information (Always appended to maintain spacing)
+                const shiftDiv = document.createElement('div');
+                shiftDiv.className = 'flex flex-col items-center justify-center w-full pointer-events-none z-10 leading-none';
+                
                 const shift = shiftsData[dateStr];
                 const isOnCall = onCallData[dateStr];
                 
-                if (shift || isOnCall) {
-                    const shiftDiv = document.createElement('div');
-                    shiftDiv.className = 'absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none opacity-80';
-                    
-                    if (shift) {
-                        const shiftSpan = document.createElement('span');
-                        shiftSpan.className = 'font-bold text-xs md:text-sm orbitron tracking-widest';
-                        if (shift === 'LD') { shiftSpan.innerText = 'LD'; shiftSpan.className += ' text-cyan-400 drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]'; }
-                        else if (shift === 'LTL') { shiftSpan.innerText = 'LTL'; shiftSpan.className += ' text-pink-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]'; }
-                        else if (shift === 'E') { shiftSpan.innerText = 'E'; shiftSpan.className += ' text-green-400 drop-shadow-[0_0_5px_rgba(57,255,20,0.8)]'; }
-                        else if (shift === 'L') { shiftSpan.innerText = 'L'; shiftSpan.className += ' text-yellow-400 drop-shadow-[0_0_5px_rgba(255,255,0,0.8)]'; }
-                        shiftDiv.appendChild(shiftSpan);
-                    }
-                    
-                    if (isOnCall) {
-                        const ocSpan = document.createElement('span');
-                        ocSpan.className = 'text-[10px] text-orange-500 font-bold orbitron drop-shadow-[0_0_5px_rgba(255,153,0,0.8)] mt-[-2px]';
-                        ocSpan.innerText = 'OC';
-                        shiftDiv.appendChild(ocSpan);
-                    }
-                    
-                    cell.appendChild(shiftDiv);
+                if (shift) {
+                    const shiftSpan = document.createElement('span');
+                    shiftSpan.className = 'font-bold text-[9px] md:text-[11px] orbitron tracking-widest';
+                    if (shift === 'LD') { shiftSpan.innerText = 'LD'; shiftSpan.className += ' text-cyan-400 drop-shadow-[0_0_5px_rgba(0,243,255,0.8)]'; }
+                    else if (shift === 'LTL') { shiftSpan.innerText = 'LTL'; shiftSpan.className += ' text-pink-400 drop-shadow-[0_0_5px_rgba(255,0,255,0.8)]'; }
+                    else if (shift === 'E') { shiftSpan.innerText = 'E'; shiftSpan.className += ' text-green-400 drop-shadow-[0_0_5px_rgba(57,255,20,0.8)]'; }
+                    else if (shift === 'L') { shiftSpan.innerText = 'L'; shiftSpan.className += ' text-yellow-400 drop-shadow-[0_0_5px_rgba(255,255,0,0.8)]'; }
+                    shiftDiv.appendChild(shiftSpan);
                 }
+                
+                if (isOnCall) {
+                    const ocSpan = document.createElement('span');
+                    ocSpan.className = 'text-[8px] md:text-[9px] text-orange-500 font-bold orbitron drop-shadow-[0_0_5px_rgba(255,153,0,0.8)] mt-0.5';
+                    ocSpan.innerText = 'OC';
+                    shiftDiv.appendChild(ocSpan);
+                }
+                
+                cell.appendChild(shiftDiv);
 
+                // 3. BOTTOM: Event Indicators (Always appended to maintain spacing)
+                const indicatorDiv = document.createElement('div');
+                indicatorDiv.className = 'event-indicator z-10';
+                
                 const dayEvents = eventsData[dateStr] || [];
                 if (dayEvents.length > 0) {
-                    const indicatorDiv = document.createElement('div');
-                    indicatorDiv.className = 'event-indicator';
-                    
                     if (dayEvents.some(e => e.type === 'apt')) {
                         const dot = document.createElement('div');
                         dot.className = 'dot dot-apt';
@@ -618,8 +567,8 @@
                         dot.className = 'dot dot-event';
                         indicatorDiv.appendChild(dot);
                     }
-                    cell.appendChild(indicatorDiv);
                 }
+                cell.appendChild(indicatorDiv);
                 
                 calendarGrid.appendChild(cell);
             }
@@ -670,7 +619,7 @@
             saveData();
             renderEvents();
             renderCalendar();
-            renderModalEvents(); // Update modal list
+            renderModalEvents();
         }
 
         function handleModalEnter(e) {
@@ -846,10 +795,10 @@
             eventsData[selectedDateStr] = eventsData[selectedDateStr].filter(e => e.id !== id);
             if (eventsData[selectedDateStr].length === 0) delete eventsData[selectedDateStr];
             
-            saveData(); // <--- TRIGGERS SAVE
+            saveData();
             renderEvents();
             renderCalendar();
-            renderModalEvents(); // Update modal list
+            renderModalEvents();
         }
 
         function toggleTodo(id) {
@@ -858,9 +807,9 @@
             const event = eventsData[selectedDateStr].find(e => e.id === id);
             if (event) {
                 event.done = !event.done;
-                saveData(); // <--- TRIGGERS SAVE
+                saveData();
                 renderEvents();
-                renderModalEvents(); // Update modal list
+                renderModalEvents();
             }
         }
 
@@ -870,7 +819,7 @@
             if (type) shiftsData[dateStr] = type;
             else delete shiftsData[dateStr];
             
-            saveData(); // <--- TRIGGERS SAVE
+            saveData();
             renderCalendar();
         };
 
@@ -880,7 +829,7 @@
             if (onCallData[dateStr]) delete onCallData[dateStr];
             else onCallData[dateStr] = true;
             
-            saveData(); // <--- TRIGGERS SAVE
+            saveData();
             renderCalendar();
         };
 
